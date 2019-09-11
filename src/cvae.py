@@ -57,6 +57,8 @@ class CVAE(torch.nn.Module):
     def __init__(self, n_speakers):
         super(CVAE, self).__init__()
 
+        self._n_speakers = n_speakers
+
         self.log_g = Parameter(torch.ones([]))
 
         self.encoder_conv1 = GatedConvBN1d(
@@ -74,6 +76,10 @@ class CVAE(torch.nn.Module):
             512 + n_speakers, 1024, kernel_size=4, stride=2, padding=1)
         self.decoder_deconv3 = torch.nn.ConvTranspose1d(
             1024 + n_speakers, 2048, kernel_size=5, stride=1, padding=2)
+
+    @property
+    def n_speakers(self):
+        return self._n_speakers
 
     def encode(self, x, c):
         c = c.unsqueeze(2)
