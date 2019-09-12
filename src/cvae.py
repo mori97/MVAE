@@ -62,7 +62,7 @@ class CVAE(torch.nn.Module):
         self.log_g = Parameter(torch.ones([]))
 
         self.encoder_conv1 = GatedConvBN1d(
-            2048 + n_speakers, 1024, kernel_size=5, stride=1, padding=2)
+            2049 + n_speakers, 1024, kernel_size=5, stride=1, padding=2)
         self.encoder_conv2 = GatedConvBN1d(
             1024 + n_speakers, 512, kernel_size=4, stride=2, padding=1)
         self.encoder_mu = torch.nn.Conv1d(
@@ -75,7 +75,7 @@ class CVAE(torch.nn.Module):
         self.decoder_deconv2 = GatedDeconvBN1d(
             512 + n_speakers, 1024, kernel_size=4, stride=2, padding=1)
         self.decoder_deconv3 = torch.nn.ConvTranspose1d(
-            1024 + n_speakers, 2048, kernel_size=5, stride=1, padding=2)
+            1024 + n_speakers, 2049, kernel_size=5, stride=1, padding=2)
 
     @property
     def n_speakers(self):

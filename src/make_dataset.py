@@ -38,7 +38,7 @@ def make_train_dataset(dataset_dir, speakers=None):
             for wav_file in wav_files:
                 sound, _ = torchaudio.load(wav_file)
                 sound = resample(sound)
-                spectrogram.append(create_spectrogram(sound).squeeze(0)[:2048])
+                spectrogram.append(create_spectrogram(sound).squeeze(0))
             spectrogram = torch.cat(spectrogram, dim=1)
 
             length = 128
