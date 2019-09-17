@@ -5,7 +5,6 @@ import re
 
 import mir_eval
 import numpy as np
-import pyroomacoustics as pra
 from scipy.io import wavfile
 import scipy.signal as signal
 import torch
@@ -13,6 +12,7 @@ import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
 from cvae import CVAE, lossfun
+from ilrma import ilrma
 
 
 def train(model, data_loader, optimizer, device, epoch, writer):
@@ -38,15 +38,15 @@ def baseline_ilrma(val_dataset):
     ret = {}
 
     for src, mix_spec, speaker in val_dataset:
-        mix_spec = np.transpose(mix_spec, (2, 0, 1))  # (T, F, C)
-        separated = pra.bss.ilrma(mix_spec, n_iter=100, proj_back=True)
+        src = src.T  # (n_ch, t)
+        separated, _ = ilrma(mix_spec, n_iter=100)
         _, separated = signal.istft(separated, fs=16000, nperseg=4096,
-                                    time_axis=0, freq_axis=1)
+                                    time_axis=2, freq_axis=0)
 
-        min_size = min(src.shape[0], separated.shape[0])
-        src, separated = src[:min_size], separated[:min_size]
+        min_size = min(src.shape[1], separated.shape[1])
+        src, separated = src[:, :min_size], separated[:, :min_size]
         sdr, sir, sar, _ =\
-            mir_eval.separation.bss_eval_sources(src.T, separated.T)
+            mir_eval.separation.bss_eval_sources(src, separated)
 
         if speaker in ret:
             ret[speaker]['SDR'].append(sdr)
