@@ -2,9 +2,11 @@ import argparse
 import os
 import pickle
 import re
-import statistics
+import statistics as stat
 
+import matplotlib.pyplot as plt
 import mir_eval
+import numpy as np
 from scipy.io import wavfile
 import scipy.signal as signal
 import torch
@@ -13,6 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from cvae import CVAE, lossfun
 from ilrma import ilrma
+from mvae import mvae
 
 
 def train(model, data_loader, optimizer, device, epoch, writer):
@@ -30,6 +33,69 @@ def train(model, data_loader, optimizer, device, epoch, writer):
         optimizer.step()
 
     writer.add_scalar('Loss/train', total_loss / len(data_loader), epoch)
+
+
+def validate(model, val_dataset, baseline, device, epoch, writer):
+    model.eval()
+
+    result = {'SDR': {}, 'SIR': {}, 'SAR': {}}
+    for src, mix_spec, speaker in val_dataset:
+        src = src.T  # (n_ch, t)
+        separated, _ = mvae(mix_spec, model, n_iter=40, device=device)
+        _, separated = signal.istft(separated, fs=16000, nperseg=4096,
+                                    time_axis=2, freq_axis=0)
+        min_size = min(src.shape[1], separated.shape[1])
+        src, separated = src[:, :min_size], separated[:, :min_size]
+        sdr, sir, sar, _ =\
+            mir_eval.separation.bss_eval_sources(src, separated)
+
+        if speaker in result['SDR']:
+            result['SDR'][speaker].extend(sdr.tolist())
+            result['SIR'][speaker].extend(sir.tolist())
+            result['SAR'][speaker].extend(sar.tolist())
+        else:
+            result['SDR'][speaker] = []
+            result['SIR'][speaker] = []
+            result['SAR'][speaker] = []
+
+    for metric in result:
+        for speaker in result[metric]:
+            result[metric][speaker] = (stat.mean(result[metric][speaker]),
+                                       stat.stdev(result[metric][speaker]))
+
+    figures = bar_chart(baseline, result)
+    for metric, figure in figures.items():
+        writer.add_figure(f'eval/{metric}', figure, epoch)
+
+
+def bar_chart(baseline, result):
+    ret = {}
+
+    speakers = list(result['SDR'].keys())
+    speakers.sort()
+    x = np.arange(len(speakers))
+    width = 0.4
+
+    for metric in result:
+        baseline_mean = [baseline[metric][speaker][0] for speaker in speakers]
+        baseline_stdv = [baseline[metric][speaker][1] for speaker in speakers]
+        result_mean = [result[metric][speaker][0] for speaker in speakers]
+        result_stdv = [result[metric][speaker][1] for speaker in speakers]
+
+        figure, ax = plt.subplots()
+        ax.bar(x - width / 2, baseline_mean, width,
+               yerr=baseline_stdv, label='Baseline')
+        ax.bar(x + width / 2, result_mean, width,
+               yerr=result_stdv, label='MVAE')
+
+        ax.set_title(metric)
+        ax.set_xticks(x)
+        ax.set_xticklabels(speakers)
+        ax.legend()
+
+        ret[metric] = figure
+
+    return ret
 
 
 def baseline_ilrma(val_dataset):
@@ -59,8 +125,8 @@ def baseline_ilrma(val_dataset):
 
     for metric in ret:
         for speaker in ret[metric]:
-            ret[metric][speaker] = (statistics.mean(ret[metric][speaker]),
-                                    statistics.stdev(ret[metric][speaker]))
+            ret[metric][speaker] = (stat.mean(ret[metric][speaker]),
+                                    stat.stdev(ret[metric][speaker]))
 
     return ret
 
@@ -89,6 +155,10 @@ def make_eval_set(path):
 
         _, _, mix_spec = signal.stft(src, nperseg=4096, axis=0)  # (F, C, T)
 
+        # Model accept 4*N frames input only
+        if mix_spec.shape[2] % 4 != 0:
+            mix_spec = mix_spec[:, :, :-(mix_spec.shape[2] % 4)]
+
         dataset.append((src, mix_spec, f'{speaker0}-{speaker1}'))
 
     return dataset
@@ -115,7 +185,7 @@ def main():
                         type=int, default=-1)
     parser.add_argument('--learning-rate', '-l',
                         help='Learning Rate.',
-                        type=float, default=1e-4)
+                        type=float, default=1e-5)
     args = parser.parse_args()
 
     if_use_cuda = torch.cuda.is_available() and args.gpu >= 0
@@ -127,6 +197,8 @@ def main():
         train_dataset, args.batch_size, shuffle=True)
     val_dataset = make_eval_set(args.val_dataset)
 
+    baseline = baseline_ilrma(val_dataset)
+
     model = CVAE(n_speakers=train_dataset[0][1].size(0)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), args.learning_rate)
 
@@ -135,6 +207,8 @@ def main():
 
     for epoch in range(1, args.epochs + 1):
         train(model, train_dataloader, optimizer, device, epoch, writer)
+        if epoch % 50 == 0:
+            validate(model, val_dataset, baseline, device, epoch, writer)
 
     writer.close()
 
