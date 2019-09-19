@@ -2,9 +2,9 @@ import argparse
 import os
 import pickle
 import re
+import statistics
 
 import mir_eval
-import numpy as np
 from scipy.io import wavfile
 import scipy.signal as signal
 import torch
@@ -35,7 +35,7 @@ def train(model, data_loader, optimizer, device, epoch, writer):
 def baseline_ilrma(val_dataset):
     """Evaluate with ILRMA.
     """
-    ret = {}
+    ret = {'SDR': {}, 'SIR': {}, 'SAR': {}}
 
     for src, mix_spec, speaker in val_dataset:
         src = src.T  # (n_ch, t)
@@ -48,16 +48,19 @@ def baseline_ilrma(val_dataset):
         sdr, sir, sar, _ =\
             mir_eval.separation.bss_eval_sources(src, separated)
 
-        if speaker in ret:
-            ret[speaker]['SDR'].append(sdr)
-            ret[speaker]['SIR'].append(sir)
-            ret[speaker]['SAR'].append(sar)
+        if speaker in ret['SDR']:
+            ret['SDR'][speaker].extend(sdr.tolist())
+            ret['SIR'][speaker].extend(sir.tolist())
+            ret['SAR'][speaker].extend(sar.tolist())
         else:
-            ret[speaker] = {'SDR': [], 'SIR': [], 'SAR': []}
+            ret['SDR'][speaker] = []
+            ret['SIR'][speaker] = []
+            ret['SAR'][speaker] = []
 
-    for speaker in ret:
-        for k in ret[speaker]:
-            ret[speaker][k] = np.mean(np.concatenate(ret[speaker][k]))
+    for metric in ret:
+        for speaker in ret[metric]:
+            ret[metric][speaker] = (statistics.mean(ret[metric][speaker]),
+                                    statistics.stdev(ret[metric][speaker]))
 
     return ret
 
