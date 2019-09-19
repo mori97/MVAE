@@ -124,7 +124,7 @@ def main():
         train_dataset, args.batch_size, shuffle=True)
     val_dataset = make_eval_set(args.val_dataset)
 
-    model = CVAE(n_speakers=train_dataset[0][0].size(0)).to(device)
+    model = CVAE(n_speakers=train_dataset[0][1].size(0)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), args.learning_rate)
 
     # TensorBoard
