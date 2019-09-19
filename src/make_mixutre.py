@@ -76,7 +76,7 @@ def make_eval_dataset(dataset_dir, output_path, speakers=None, echoic=False,
             src1, fs1 = librosa.load(wav1_path)
 
             assert fs0 == 22050, fs1 == 22050
-            if src0.shape[0] > 3 * 22050 and src1.shape[0] > 3 * 22050:
+            if src0.shape[0] > 4 * 22050 and src1.shape[0] > 4 * 22050:
                 n_output += 1
             else:
                 continue
