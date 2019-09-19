@@ -99,14 +99,13 @@ class CVAE(torch.nn.Module):
         h = torch.cat((h, c.expand(-1, -1, h.size(2))), dim=1)
         h = self.decoder_deconv2(h)
         h = torch.cat((h, c.expand(-1, -1, h.size(2))), dim=1)
-        h = self.decoder_deconv3(h)
-        log_sigma_sq = self.log_g + h
+        log_sigma_sq = self.decoder_deconv3(h)
         return log_sigma_sq
 
     def forward(self, x, c):
         mu, logvar = self.encode(x, c)
         z = _reparameterize(mu, logvar)
-        log_sigma_sq = self.decode(z, c)
+        log_sigma_sq = self.decode(z, c) + self.log_g
         return log_sigma_sq, mu, logvar
 
 
