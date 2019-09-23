@@ -72,17 +72,14 @@ def make_eval_dataset(dataset_dir, output_path, speakers=None, echoic=False,
                 break
             wav0_path = os.path.join(evaluation_dir, speaker0, wav0)
             wav1_path = os.path.join(evaluation_dir, speaker1, wav1)
-            src0, fs0 = librosa.load(wav0_path)
-            src1, fs1 = librosa.load(wav1_path)
+            src0, _ = librosa.load(wav0_path, sr=16000)
+            src1, _ = librosa.load(wav1_path, sr=16000)
 
-            assert fs0 == 22050, fs1 == 22050
-            if src0.shape[0] > 4 * 22050 and src1.shape[0] > 4 * 22050:
+            if src0.shape[0] > 4 * 16000 and src1.shape[0] > 4 * 16000:
                 n_output += 1
             else:
                 continue
 
-            src0 = librosa.resample(src0, 22050, 16000)
-            src1 = librosa.resample(src1, 22050, 16000)
             min_len = min(len(src0), len(src1))
             src0, src1 = src0[:min_len], src1[:min_len]
 

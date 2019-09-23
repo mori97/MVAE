@@ -4,11 +4,10 @@ import pickle
 import re
 import statistics as stat
 
+import librosa
 import matplotlib.pyplot as plt
 import mir_eval
 import numpy as np
-from scipy.io import wavfile
-import scipy.signal as signal
 import torch
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
@@ -40,10 +39,10 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
 
     result = {'SDR': {}, 'SIR': {}, 'SAR': {}}
     for src, mix_spec, speaker in val_dataset:
-        src = src.T  # (n_ch, t)
         separated, _ = mvae(mix_spec, model, n_iter=40, device=device)
-        _, separated = signal.istft(separated, fs=16000, nperseg=4096,
-                                    time_axis=2, freq_axis=0)
+        separated = [librosa.istft(separated[:, ch, :], 2048)
+                     for ch in range(separated.shape[1])]
+        separated = np.stack(separated, axis=0)
         min_size = min(src.shape[1], separated.shape[1])
         src, separated = src[:, :min_size], separated[:, :min_size]
         sdr, sir, sar, _ =\
@@ -104,10 +103,10 @@ def baseline_ilrma(val_dataset):
     ret = {'SDR': {}, 'SIR': {}, 'SAR': {}}
 
     for src, mix_spec, speaker in val_dataset:
-        src = src.T  # (n_ch, t)
         separated, _ = ilrma(mix_spec, n_iter=100)
-        _, separated = signal.istft(separated, fs=16000, nperseg=4096,
-                                    time_axis=2, freq_axis=0)
+        separated = [librosa.istft(separated[:, ch, :], 2048)
+                     for ch in range(separated.shape[1])]
+        separated = np.stack(separated, axis=0)
 
         min_size = min(src.shape[1], separated.shape[1])
         src, separated = src[:, :min_size], separated[:, :min_size]
@@ -149,11 +148,10 @@ def make_eval_set(path):
         src_wav_path = os.path.join(path, src_wav_file)
         mix_wav_path = os.path.join(path, mix_wav_file)
 
-        src_fs, src = wavfile.read(src_wav_path)
-        mix_fs, mix = wavfile.read(mix_wav_path)
-        assert src_fs == 16000, mix_fs == 16000
+        src, _ = librosa.load(src_wav_path, sr=16000, mono=False)
+        mix, _ = librosa.load(mix_wav_path, sr=16000, mono=False)
 
-        _, _, mix_spec = signal.stft(src, nperseg=4096, axis=0)  # (F, C, T)
+        mix_spec = np.stack([librosa.stft(x, 4096, 2048) for x in mix], axis=1)
 
         # Model accept 4*N frames input only
         if mix_spec.shape[2] % 4 != 0:
