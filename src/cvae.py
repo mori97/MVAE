@@ -112,6 +112,7 @@ class CVAE(torch.nn.Module):
 def lossfun(x, log_sigma_sq, mu, logvar):
     """Compute the loss function.
     """
-    loss = torch.mean(log_sigma_sq) + torch.mean(x / log_sigma_sq.exp()) \
-        - 0.5 * torch.mean(logvar - mu.pow(2) - logvar.exp())
-    return loss
+    batch_size = x.size(0)
+    loss = torch.sum(log_sigma_sq + x / log_sigma_sq.exp()) \
+        - 0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
+    return loss / batch_size
