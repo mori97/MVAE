@@ -38,7 +38,7 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
     model.eval()
 
     result = {'SDR': {}, 'SIR': {}, 'SAR': {}}
-    for src, mix_spec, speaker in val_dataset:
+    for i, (src, mix_spec, speaker) in enumerate(val_dataset):
         separated, _ = mvae(mix_spec, model, n_iter=40, device=device)
         separated = [librosa.istft(separated[:, ch, :], 2048)
                      for ch in range(separated.shape[1])]
@@ -56,6 +56,11 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
             result['SDR'][speaker] = []
             result['SIR'][speaker] = []
             result['SAR'][speaker] = []
+
+        sep_tensor0 = torch.from_numpy(separated[0, :]).unsqueeze(0)
+        sep_tensor1 = torch.from_numpy(separated[1, :]).unsqueeze(0)
+        writer.add_audio('eval/{}_0'.format(i), sep_tensor0, epoch, 16000)
+        writer.add_audio('eval/{}_1'.format(i), sep_tensor1, epoch, 16000)
 
     for metric in result:
         for speaker in result[metric]:
