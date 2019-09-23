@@ -19,6 +19,7 @@ def make_train_dataset(dataset_dir, speakers=None):
             List of spectrogram and speaker label.
     """
     training_dir = os.path.join(dataset_dir, 'vcc2018_training')
+    evaluation_dir = os.path.join(dataset_dir, 'vcc2018_evaluation')
     if speakers is None:
         speakers = [speaker for speaker in os.listdir(training_dir)
                     if speaker.startswith('VCC2') and
@@ -34,6 +35,10 @@ def make_train_dataset(dataset_dir, speakers=None):
             wav_files = [os.path.join(speaker_dir, wav_file)
                          for wav_file in os.listdir(speaker_dir)
                          if os.path.splitext(wav_file)[1] == '.wav']
+            speaker_dir = os.path.join(evaluation_dir, speaker)
+            wav_files.extend([os.path.join(speaker_dir, wav_file)
+                              for wav_file in os.listdir(speaker_dir)
+                              if os.path.splitext(wav_file)[1] == '.wav'])
             spectrogram = []
             for wav_file in wav_files:
                 sound, _ = torchaudio.load(wav_file)
