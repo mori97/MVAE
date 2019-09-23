@@ -1,12 +1,13 @@
 import numpy as np
 import torch
 
+from common import projection_back
 from ilrma import ilrma
 
 EPS = 1e-9
 
 
-def mvae(mix, model, n_iter, device):
+def mvae(mix, model, n_iter, device, proj_back=True):
     """Implementation of Multichannel Conditional VAE.
     It only works in the determined case (n_sources == n_channels).
 
@@ -16,6 +17,7 @@ def mvae(mix, model, n_iter, device):
         model (cvae.CVAE): Trained Conditional VAE model.
         n_iter (int): Number of iterations.
         device (torch.device): Device used for computation.
+        proj_back (bool): If use back-projection technique.
 
     Returns:
         tuple[numpy.ndarray, numpy.ndarray]: Tuple of separated signal and
@@ -35,6 +37,7 @@ def mvae(mix, model, n_iter, device):
         sep_pow_tensor = torch.from_numpy(sep_pow).transpose(0, 1).to(device)
         z, _ = model.encode(sep_pow_tensor, c)
         sigma_sq = (model.decode(z, c) + log_g).exp()
+        sigma_sq.clamp_(min=EPS)
         sigma_reci = (1 / sigma_sq).cpu().numpy()
     z.requires_grad = True
 
@@ -53,6 +56,7 @@ def mvae(mix, model, n_iter, device):
 
         np.matmul(sep_mat, mix, out=sep)
         np.power(np.abs(sep), 2, out=sep_pow)
+        np.clip(sep_pow, a_min=EPS, a_max=None, out=sep_pow)
 
         optimizer = torch.optim.Adam((z, c), lr=1e-4)
         sep_pow_tensor = torch.from_numpy(sep_pow).to(device).transpose(0, 1)
@@ -74,5 +78,10 @@ def mvae(mix, model, n_iter, device):
             sep_mat *= lbd.unsqueeze(0).unsqueeze(2).cpu().numpy()
 
             sigma_reci = (1 / sigma_sq).cpu().numpy()
+
+    # Back-projection technique
+    if proj_back:
+        z = projection_back(sep, mix[:, 0, :])
+        sep *= np.conj(z[:, :, None])
 
     return sep, sep_mat

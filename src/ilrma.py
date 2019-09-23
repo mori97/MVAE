@@ -1,9 +1,11 @@
 import numpy as np
 
+from common import projection_back
+
 EPS = 1e-9
 
 
-def ilrma(mix, n_iter, n_basis=2):
+def ilrma(mix, n_iter, n_basis=2, proj_back=True):
     """Implementation of ILRMA (Independent Low-Rank Matrix Analysis).
     This algorithm is called ILRMA1 in http://d-kitamura.net/pdf/misc/AlgorithmsForIndependentLowRankMatrixAnalysis.pdf
     It only works in determined case (n_sources == n_channels).
@@ -13,6 +15,7 @@ def ilrma(mix, n_iter, n_basis=2):
             STFT representation of the observed signal.
         n_iter (int): Number of iterations.
         n_basis (int): Number of basis in the NMF model.
+        proj_back (bool): If use back-projection technique.
 
     Returns:
         tuple[numpy.ndarray, numpy.ndarray]: Tuple of separated signal and
@@ -63,6 +66,7 @@ def ilrma(mix, n_iter, n_basis=2):
 
         np.matmul(sep_mat, mix, out=sep)
         np.power(np.abs(sep), 2, out=sep_pow)
+        np.clip(sep_pow, a_min=EPS, a_max=None, out=sep_pow)
 
         for src in range(n_src):
             lbd = np.sqrt(np.sum(sep_pow[:, src, :]) / n_freq / n_frame)
@@ -70,5 +74,10 @@ def ilrma(mix, n_iter, n_basis=2):
             sep_pow[:, src, :] /= lbd ** 2
             model[src] /= lbd ** 2
             basis[src] /= lbd ** 2
+
+    # Back-projection technique
+    if proj_back:
+        z = projection_back(sep, mix[:, 0, :])
+        sep *= np.conj(z[:, :, None])
 
     return sep, sep_mat
