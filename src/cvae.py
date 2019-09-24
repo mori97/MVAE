@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
+EPS = 1e-9
+
 
 def _reparameterize(mu, logvar):
     """Reparameterization trick.
@@ -113,6 +115,6 @@ def lossfun(x, log_sigma_sq, mu, logvar):
     """Compute the loss function.
     """
     batch_size = x.size(0)
-    loss = torch.sum(log_sigma_sq + x / log_sigma_sq.exp()) \
+    loss = torch.sum(log_sigma_sq + x / log_sigma_sq.exp().clamp(EPS)) \
         - 0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
     return loss / batch_size
