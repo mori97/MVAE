@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import mir_eval
 import numpy as np
 import torch
+from torch.nn.utils import clip_grad_norm_
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
@@ -29,6 +30,7 @@ def train(model, data_loader, optimizer, device, epoch, writer):
 
         optimizer.zero_grad()
         loss.backward()
+        clip_grad_norm_(model.parameters(), 2)
         optimizer.step()
 
     writer.add_scalar('Loss/train', total_loss / len(data_loader), epoch)
