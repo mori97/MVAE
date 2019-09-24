@@ -184,7 +184,10 @@ def main():
                         type=int, default=32)
     parser.add_argument('--epochs', '-e',
                         help='Number of epochs.',
-                        type=int, default=100)
+                        type=int, default=150)
+    parser.add_argument('--eval-interval',
+                        help='Evaluate every N epochs.',
+                        type=int, default=50, metavar='N')
     parser.add_argument('--gpu', '-g',
                         help='GPU id. (Negative number indicates CPU)',
                         type=int, default=-1)
@@ -212,7 +215,7 @@ def main():
 
     for epoch in range(1, args.epochs + 1):
         train(model, train_dataloader, optimizer, device, epoch, writer)
-        if epoch % 50 == 0:
+        if epoch % args.eval_interval == 0:
             validate(model, val_dataset, baseline, device, epoch, writer)
 
     writer.close()
