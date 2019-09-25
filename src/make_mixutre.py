@@ -20,9 +20,9 @@ def get_rir(echoic=False):
         ret (numpy.ndarray): A 3-dimensional array that ret[m][s] is the RIR
             from the s-th source to the m-th microphone.
     """
-    absorption = 0.2 if echoic else 0.8
+    absorption = 0.2 if echoic else 0.66
     room = pra.ShoeBox([6, 5, 3], fs=16000,
-                       absorption=absorption, max_order=10)
+                       absorption=absorption, max_order=32)
 
     mic_coordinates = np.c_[[2.0, 1.95, 1.5], [2.0, 2.05, 1.5]]
     mic_array = pra.MicrophoneArray(mic_coordinates, room.fs)
