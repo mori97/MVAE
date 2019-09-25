@@ -184,16 +184,16 @@ def main():
                         type=int, default=32)
     parser.add_argument('--epochs', '-e',
                         help='Number of epochs.',
-                        type=int, default=150)
+                        type=int, default=800)
     parser.add_argument('--eval-interval',
                         help='Evaluate every N epochs.',
-                        type=int, default=50, metavar='N')
+                        type=int, default=200, metavar='N')
     parser.add_argument('--gpu', '-g',
                         help='GPU id. (Negative number indicates CPU)',
                         type=int, default=-1)
     parser.add_argument('--learning-rate', '-l',
                         help='Learning Rate.',
-                        type=float, default=1e-5)
+                        type=float, default=1e-3)
     args = parser.parse_args()
 
     if_use_cuda = torch.cuda.is_available() and args.gpu >= 0
