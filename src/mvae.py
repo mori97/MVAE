@@ -7,7 +7,7 @@ from ilrma import ilrma
 EPS = 1e-9
 
 
-def mvae(mix, model, n_iter, device, proj_back=True):
+def mvae(mix, model, n_iter, device, proj_back=True, return_sigma=False):
     """Implementation of Multichannel Conditional VAE.
     It only works in the determined case (n_sources == n_channels).
 
@@ -18,6 +18,8 @@ def mvae(mix, model, n_iter, device, proj_back=True):
         n_iter (int): Number of iterations.
         device (torch.device): Device used for computation.
         proj_back (bool): If use back-projection technique.
+        return_sigma (bool): If also return estimated power spectrogram for
+            each speaker.
 
     Returns:
         tuple[numpy.ndarray, numpy.ndarray]: Tuple of separated signal and
@@ -84,4 +86,7 @@ def mvae(mix, model, n_iter, device, proj_back=True):
         z = projection_back(sep, mix[:, 0, :])
         sep *= np.conj(z[:, :, None])
 
-    return sep, sep_mat
+    if return_sigma:
+        return sep, sep_mat, sigma_sq.cpu().numpy()
+    else:
+        return sep, sep_mat
