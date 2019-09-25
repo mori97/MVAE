@@ -45,8 +45,6 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
         separated = [librosa.istft(separated[:, ch, :], 2048)
                      for ch in range(separated.shape[1])]
         separated = np.stack(separated, axis=0)
-        min_size = min(src.shape[1], separated.shape[1])
-        src, separated = src[:, :min_size], separated[:, :min_size]
         sdr, sir, sar, _ =\
             mir_eval.separation.bss_eval_sources(src, separated)
 
@@ -115,8 +113,6 @@ def baseline_ilrma(val_dataset):
                      for ch in range(separated.shape[1])]
         separated = np.stack(separated, axis=0)
 
-        min_size = min(src.shape[1], separated.shape[1])
-        src, separated = src[:, :min_size], separated[:, :min_size]
         sdr, sir, sar, _ =\
             mir_eval.separation.bss_eval_sources(src, separated)
 
@@ -145,6 +141,14 @@ def make_eval_set(path):
           r'(?P<speaker1>[A-Z]{2}\d)(?P<num1>\d\d)_src\.wav$'
     prog = re.compile(ptn)
 
+    def zero_pad(x):
+        if (x.shape[1] + 2048) % 8192 == 0:
+            return x
+        rest = 8192 - (x.shape[1] + 2048) % 8192
+        left = rest // 2
+        right = rest - left
+        return np.pad(x, ((0, 0), (left, right)), mode='constant')
+
     dataset = []
     for src_wav_file in src_wav_files:
         result = prog.match(src_wav_file)
@@ -157,12 +161,9 @@ def make_eval_set(path):
 
         src, _ = librosa.load(src_wav_path, sr=16000, mono=False)
         mix, _ = librosa.load(mix_wav_path, sr=16000, mono=False)
+        src, mix = zero_pad(src), zero_pad(mix)
 
         mix_spec = np.stack([librosa.stft(x, 4096, 2048) for x in mix], axis=1)
-
-        # Model accept 4*N frames input only
-        if mix_spec.shape[2] % 4 != 0:
-            mix_spec = mix_spec[:, :, :-(mix_spec.shape[2] % 4)]
 
         dataset.append((src, mix_spec, f'{speaker0}-{speaker1}'))
 

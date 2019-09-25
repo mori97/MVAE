@@ -85,7 +85,7 @@ def make_eval_dataset(dataset_dir, output_path, speakers=None, echoic=False,
 
             mic0 = convolve(src0, rir[0][0]) + convolve(src1, rir[0][1])
             mic1 = convolve(src0, rir[1][0]) + convolve(src1, rir[1][1])
-            mixture = np.stack((mic0, mic1), axis=1)
+            mixture = np.stack((mic0, mic1), axis=1)[:min_len, :]
 
             source = np.stack((src0, src1), axis=1)
             filename = f'{speaker0[-3:]}{wav0[3:5]}' \
