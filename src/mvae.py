@@ -65,7 +65,7 @@ def mvae(mix, model, n_iter, device, proj_back=True, return_sigma=False):
         for _ in range(100):
             log_sigma_sq = model.decode(z, torch.softmax(c, dim=1)) + log_g
             loss = torch.sum(
-                log_sigma_sq + sep_pow_tensor / log_sigma_sq.exp())
+                log_sigma_sq + (sep_pow_tensor.log() - log_sigma_sq).exp())
             model.zero_grad()
             optimizer.zero_grad()
             loss.backward()

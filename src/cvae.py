@@ -2,8 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
-EPS = 1e-9
-
 
 def _reparameterize(mu, logvar):
     """Reparameterization trick.
@@ -84,6 +82,7 @@ class CVAE(torch.nn.Module):
         return self._n_speakers
 
     def encode(self, x, c):
+        x = torch.log(x)
         c = c.unsqueeze(2)
         h = torch.cat((x, c.expand(-1, -1, x.size(2))), dim=1)
         h = self.encoder_conv1(h)
@@ -115,6 +114,6 @@ def lossfun(x, log_sigma_sq, mu, logvar):
     """Compute the loss function.
     """
     batch_size = x.size(0)
-    loss = torch.sum(log_sigma_sq + x / log_sigma_sq.exp().clamp(EPS)) \
+    loss = torch.sum(log_sigma_sq + (x.log() - log_sigma_sq).exp()) \
         - 0.5 * torch.sum(logvar - mu.pow(2) - logvar.exp())
     return loss / batch_size
