@@ -37,6 +37,7 @@ def mvae(mix, model, n_iter, device, proj_back=True, return_sigma=False):
 
     with torch.no_grad():
         sep_pow_tensor = torch.from_numpy(sep_pow).transpose(0, 1).to(device)
+        sep_pow_tensor.clamp_(EPS)
         z, _ = model.encode(sep_pow_tensor, c)
         sigma_sq = (model.decode(z, c) + log_g).exp()
         sigma_sq.clamp_(min=EPS)
