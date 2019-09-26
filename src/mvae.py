@@ -61,9 +61,9 @@ def mvae(mix, model, n_iter, device, proj_back=True, return_sigma=False):
         np.power(np.abs(sep), 2, out=sep_pow)
         np.clip(sep_pow, a_min=EPS, a_max=None, out=sep_pow)
 
-        optimizer = torch.optim.Adam((z, c), lr=1e-4)
+        optimizer = torch.optim.Adam((z, c), lr=1e-3)
         sep_pow_tensor = torch.from_numpy(sep_pow).to(device).transpose(0, 1)
-        for _ in range(100):
+        for _ in range(50):
             log_sigma_sq = model.decode(z, torch.softmax(c, dim=1)) + log_g
             loss = torch.sum(
                 log_sigma_sq + (sep_pow_tensor.log() - log_sigma_sq).exp())

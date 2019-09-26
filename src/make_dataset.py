@@ -45,7 +45,6 @@ def make_train_dataset(dataset_dir, speakers=None):
                 sound = resample(sound)
                 spectrogram.append(create_spectrogram(sound).squeeze(0))
             spectrogram = torch.cat(spectrogram, dim=1)
-            spectrogram.clamp_(torch.mean(spectrogram) * 1e-4)
 
             length = 64
             overlap = 48
