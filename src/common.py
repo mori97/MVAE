@@ -3,6 +3,7 @@ try:
     import cupy as cp
 except ImportError:
     cp = None
+from torch.utils.dlpack import from_dlpack, to_dlpack
 
 EPS = 1e-9
 
@@ -33,3 +34,15 @@ def projection_back(sep, ref):
     denom = xp.sum(xp.abs(sep) ** 2, axis=2)
     xp.clip(denom, a_min=EPS, a_max=None, out=denom)
     return num / denom
+
+
+def to_cupy(tensor):
+    """Convert PyTorch tensor to CuPy array.
+    """
+    return cp.fromDlpack(to_dlpack(tensor))
+
+
+def to_tensor(cp_array):
+    """Convert CuPy array to PyTorch tensor.
+    """
+    return from_dlpack(cp_array.toDlpack())
