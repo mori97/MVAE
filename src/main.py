@@ -4,6 +4,10 @@ import pickle
 import re
 import statistics as stat
 
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
 import librosa
 import matplotlib.pyplot as plt
 import mir_eval
@@ -12,7 +16,9 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
+from torchaudio.functional import istft
 
+from common import to_tensor
 from cvae import CVAE, lossfun
 from ilrma import ilrma
 from mvae import mvae
@@ -39,12 +45,27 @@ def train(model, data_loader, optimizer, device, epoch, writer):
 def validate(model, val_dataset, baseline, device, epoch, writer):
     model.eval()
 
+    if_use_cuda = device != torch.device('cpu')
+    xp = cp if if_use_cuda else np
+
+    window = torch.hann_window(4096).to(device)
+
     result = {'SDR': {}, 'SIR': {}, 'SAR': {}}
     for i, (src, mix_spec, speaker) in enumerate(val_dataset):
+        if if_use_cuda:
+            mix_spec = cp.asarray(mix_spec)
         separated, _ = mvae(mix_spec, model, n_iter=40, device=device)
-        separated = [librosa.istft(separated[:, ch, :], 2048)
-                     for ch in range(separated.shape[1])]
-        separated = np.stack(separated, axis=0)
+        separated = separated.transpose(1, 0, 2)
+        # Convert to PyTorch-style complex tensor (Shape = (..., 2))
+        separated = xp.stack((xp.real(separated), xp.imag(separated)), axis=-1)
+        if if_use_cuda:
+            separated = to_tensor(separated)
+        else:
+            separated = torch.from_numpy(separated)
+        with torch.no_grad():
+            separated = istft(separated, 4096, 2048, window=window)
+            separated = separated.cpu().numpy()
+
         sdr, sir, sar, _ =\
             mir_eval.separation.bss_eval_sources(src, separated)
 
@@ -102,16 +123,29 @@ def bar_chart(baseline, result):
     return ret
 
 
-def baseline_ilrma(val_dataset):
+def baseline_ilrma(val_dataset, device):
     """Evaluate with ILRMA.
     """
-    ret = {'SDR': {}, 'SIR': {}, 'SAR': {}}
+    if_use_cuda = device != torch.device('cpu')
+    xp = cp if if_use_cuda else np
 
+    window = torch.hann_window(4096).to(device)
+
+    ret = {'SDR': {}, 'SIR': {}, 'SAR': {}}
     for src, mix_spec, speaker in val_dataset:
+        if if_use_cuda:
+            mix_spec = cp.asarray(mix_spec)
         separated, _ = ilrma(mix_spec, n_iter=100)
-        separated = [librosa.istft(separated[:, ch, :], 2048)
-                     for ch in range(separated.shape[1])]
-        separated = np.stack(separated, axis=0)
+        separated = separated.transpose(1, 0, 2)
+        # Convert to PyTorch-style complex tensor (Shape = (..., 2))
+        separated = xp.stack((xp.real(separated), xp.imag(separated)), axis=-1)
+        if if_use_cuda:
+            separated = to_tensor(separated)
+        else:
+            separated = torch.from_numpy(separated)
+        with torch.no_grad():
+            separated = istft(separated, 4096, 2048, window=window)
+            separated = separated.cpu().numpy()
 
         sdr, sir, sar, _ =\
             mir_eval.separation.bss_eval_sources(src, separated)
@@ -204,7 +238,11 @@ def main():
         os.mkdir(args.output)
 
     if_use_cuda = torch.cuda.is_available() and args.gpu >= 0
-    device = torch.device(f'cuda:{args.gpu}' if if_use_cuda else 'cpu')
+    if if_use_cuda:
+        device = torch.device(f'cuda:{args.gpu}')
+        cp.cuda.Device(args.gpu).use()
+    else:
+        device = torch.device('cpu')
 
     with open(args.train_dataset, 'rb') as f:
         train_dataset = pickle.load(f)
@@ -212,7 +250,7 @@ def main():
         train_dataset, args.batch_size, shuffle=True)
     val_dataset = make_eval_set(args.val_dataset)
 
-    baseline = baseline_ilrma(val_dataset)
+    baseline = baseline_ilrma(val_dataset, device)
 
     model = CVAE(n_speakers=train_dataset[0][1].size(0)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), args.learning_rate)
