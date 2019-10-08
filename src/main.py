@@ -187,7 +187,7 @@ def main():
                         help='Number of epochs.',
                         type=int, default=800)
     parser.add_argument('--eval-interval',
-                        help='Evaluate every N epochs.',
+                        help='Evaluate and save model every N epochs.',
                         type=int, default=200, metavar='N')
     parser.add_argument('--gpu', '-g',
                         help='GPU id. (Negative number indicates CPU)',
@@ -195,7 +195,13 @@ def main():
     parser.add_argument('--learning-rate', '-l',
                         help='Learning Rate.',
                         type=float, default=1e-3)
+    parser.add_argument('--output',
+                        help='Save model to PATH',
+                        type=str, default='./models')
     args = parser.parse_args()
+
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
 
     if_use_cuda = torch.cuda.is_available() and args.gpu >= 0
     device = torch.device(f'cuda:{args.gpu}' if if_use_cuda else 'cpu')
@@ -218,6 +224,11 @@ def main():
         train(model, train_dataloader, optimizer, device, epoch, writer)
         if epoch % args.eval_interval == 0:
             validate(model, val_dataset, baseline, device, epoch, writer)
+            # Save model
+            model.cpu()
+            path = os.path.join(args.output, f'model-{epoch}.pth')
+            torch.save(model.state_dict(), path)
+            model.gpu()
 
     writer.close()
 
