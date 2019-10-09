@@ -21,6 +21,7 @@ from torchaudio.functional import istft
 from common import to_tensor
 from cvae import CVAE, lossfun
 from ilrma import ilrma
+from make_dataset import N_FFT, HOP_LEN
 from mvae import mvae
 
 
@@ -48,7 +49,7 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
     if_use_cuda = device != torch.device('cpu')
     xp = cp if if_use_cuda else np
 
-    window = torch.hann_window(4096).to(device)
+    window = torch.hann_window(N_FFT).to(device)
 
     result = {'SDR': {}, 'SIR': {}, 'SAR': {}}
     for i, (src, mix_spec, speaker) in enumerate(val_dataset):
@@ -63,7 +64,7 @@ def validate(model, val_dataset, baseline, device, epoch, writer):
         else:
             separated = torch.from_numpy(separated)
         with torch.no_grad():
-            separated = istft(separated, 4096, 2048, window=window)
+            separated = istft(separated, N_FFT, HOP_LEN, window=window)
             separated = separated.cpu().numpy()
 
         sdr, sir, sar, _ =\
@@ -129,7 +130,7 @@ def baseline_ilrma(val_dataset, device):
     if_use_cuda = device != torch.device('cpu')
     xp = cp if if_use_cuda else np
 
-    window = torch.hann_window(4096).to(device)
+    window = torch.hann_window(N_FFT).to(device)
 
     ret = {'SDR': {}, 'SIR': {}, 'SAR': {}}
     for src, mix_spec, speaker in val_dataset:
@@ -144,7 +145,7 @@ def baseline_ilrma(val_dataset, device):
         else:
             separated = torch.from_numpy(separated)
         with torch.no_grad():
-            separated = istft(separated, 4096, 2048, window=window)
+            separated = istft(separated, N_FFT, HOP_LEN, window=window)
             separated = separated.cpu().numpy()
 
         sdr, sir, sar, _ =\
@@ -176,9 +177,9 @@ def make_eval_set(path):
     prog = re.compile(ptn)
 
     def zero_pad(x):
-        if (x.shape[1] + 2048) % 8192 == 0:
+        if (x.shape[1] + HOP_LEN) % (4 * HOP_LEN) == 0:
             return x
-        rest = 8192 - (x.shape[1] + 2048) % 8192
+        rest = 4 * HOP_LEN - (x.shape[1] + HOP_LEN) % (4 * HOP_LEN)
         left = rest // 2
         right = rest - left
         return np.pad(x, ((0, 0), (left, right)), mode='constant')
@@ -197,7 +198,8 @@ def make_eval_set(path):
         mix, _ = librosa.load(mix_wav_path, sr=16000, mono=False)
         src, mix = zero_pad(src), zero_pad(mix)
 
-        mix_spec = np.stack([librosa.stft(x, 4096, 2048) for x in mix], axis=1)
+        mix_spec = np.stack([librosa.stft(x, N_FFT, HOP_LEN) for x in mix],
+                            axis=1)
 
         dataset.append((src, mix_spec, f'{speaker0}-{speaker1}'))
 

@@ -6,6 +6,10 @@ import torch
 import torchaudio
 from torchaudio.transforms import Resample, Spectrogram
 
+DATA_LEN = 256
+N_FFT = 2048
+HOP_LEN = N_FFT // 4
+
 
 def make_train_dataset(dataset_dir, speakers=None):
     """Make the training dataset for MVAE from the VCC2018 dataset.
@@ -26,7 +30,7 @@ def make_train_dataset(dataset_dir, speakers=None):
                     os.path.isdir(os.path.join(training_dir, speaker))]
 
     resample = Resample(22050, 16000)
-    create_spectrogram = Spectrogram(n_fft=4096)
+    create_spectrogram = Spectrogram(n_fft=N_FFT, hop_length=HOP_LEN)
 
     dataset = []
     with torch.no_grad():
@@ -46,11 +50,10 @@ def make_train_dataset(dataset_dir, speakers=None):
                 spectrogram.append(create_spectrogram(sound).squeeze(0))
             spectrogram = torch.cat(spectrogram, dim=1)
 
-            length = 64
-            hop_length = 16
-            for n in range((spectrogram.size(1) - length) // hop_length + 1):
+            hop_length = DATA_LEN // 4
+            for n in range((spectrogram.size(1) - DATA_LEN) // hop_length + 1):
                 start = n * hop_length
-                data = spectrogram[:, start:start + length]
+                data = spectrogram[:, start:start + DATA_LEN]
                 label = torch.zeros(len(speakers))
                 label[c] = 1
                 dataset.append((data, label))

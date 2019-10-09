@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
+from make_dataset import N_FFT
+
 EPS = 1e-9
 
 
@@ -64,20 +66,27 @@ class CVAE(torch.nn.Module):
         self.log_g = Parameter(torch.ones([]))
 
         self.encoder_conv1 = GatedConvBN1d(
-            2049 + n_speakers, 1024, kernel_size=5, stride=1, padding=2)
+            N_FFT // 2 + 1 + n_speakers, N_FFT // 4,
+            kernel_size=5, stride=1, padding=2)
         self.encoder_conv2 = GatedConvBN1d(
-            1024 + n_speakers, 512, kernel_size=4, stride=2, padding=1)
+            N_FFT // 4 + n_speakers, N_FFT // 8,
+            kernel_size=4, stride=2, padding=1)
         self.encoder_mu = torch.nn.Conv1d(
-            512 + n_speakers, 256, kernel_size=4, stride=2, padding=1)
+            N_FFT // 8 + n_speakers, N_FFT // 16,
+            kernel_size=4, stride=2, padding=1)
         self.encoder_logvar = torch.nn.Conv1d(
-            512 + n_speakers, 256, kernel_size=4, stride=2, padding=1)
+            N_FFT // 8 + n_speakers, N_FFT // 16,
+            kernel_size=4, stride=2, padding=1)
 
         self.decoder_deconv1 = GatedDeconvBN1d(
-            256 + n_speakers, 512, kernel_size=4, stride=2, padding=1)
+            N_FFT // 16 + n_speakers, N_FFT // 8,
+            kernel_size=4, stride=2, padding=1)
         self.decoder_deconv2 = GatedDeconvBN1d(
-            512 + n_speakers, 1024, kernel_size=4, stride=2, padding=1)
+            N_FFT // 8 + n_speakers, N_FFT // 4,
+            kernel_size=4, stride=2, padding=1)
         self.decoder_deconv3 = torch.nn.ConvTranspose1d(
-            1024 + n_speakers, 2049, kernel_size=5, stride=1, padding=2)
+            N_FFT // 4 + n_speakers, N_FFT // 2 + 1,
+            kernel_size=5, stride=1, padding=2)
 
     @property
     def n_speakers(self):
