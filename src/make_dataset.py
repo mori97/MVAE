@@ -47,9 +47,9 @@ def make_train_dataset(dataset_dir, speakers=None):
             spectrogram = torch.cat(spectrogram, dim=1)
 
             length = 64
-            overlap = 48
-            for n in range((spectrogram.size(1) - length) // (length - overlap) + 1):
-                start = n * (length - overlap)
+            hop_length = 16
+            for n in range((spectrogram.size(1) - length) // hop_length + 1):
+                start = n * hop_length
                 data = spectrogram[:, start:start + length]
                 label = torch.zeros(len(speakers))
                 label[c] = 1
