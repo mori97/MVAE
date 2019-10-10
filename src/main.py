@@ -268,7 +268,7 @@ def main():
             model.cpu()
             path = os.path.join(args.output, f'model-{epoch}.pth')
             torch.save(model.state_dict(), path)
-            model.gpu()
+            model.to(device)
 
     writer.close()
 
