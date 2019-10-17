@@ -118,6 +118,9 @@ def main():
                         default=('VCC2SM1', 'VCC2SM2', 'VCC2SF1', 'VCC2SF2'))
     args = parser.parse_args()
 
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
+
     make_eval_dataset(args.dataset_dir, args.output,
                       args.speakers, args.echoic)
 
