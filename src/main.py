@@ -198,8 +198,9 @@ def make_eval_set(path):
         mix, _ = librosa.load(mix_wav_path, sr=16000, mono=False)
         src, mix = zero_pad(src), zero_pad(mix)
 
-        mix_spec = np.stack([librosa.stft(x, N_FFT, HOP_LEN) for x in mix],
-                            axis=1)
+        mix_spec = np.stack(
+            [librosa.stft(np.asfortranarray(x), N_FFT, HOP_LEN) for x in mix],
+            axis=1)
 
         dataset.append((src, mix_spec, f'{speaker0}-{speaker1}'))
 
