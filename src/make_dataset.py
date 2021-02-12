@@ -1,6 +1,5 @@
 import argparse
 import os
-import pickle
 
 import torch
 import torchaudio
@@ -79,8 +78,7 @@ def main():
 
     dataset = make_train_dataset(args.dataset_dir, args.speakers)
 
-    with open(args.output, 'wb') as f:
-        pickle.dump(dataset, f)
+    torch.save(dataset, args.output)
 
 
 if __name__ == '__main__':

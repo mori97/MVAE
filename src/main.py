@@ -1,6 +1,5 @@
 import argparse
 import os
-import pickle
 import re
 import statistics as stat
 
@@ -247,8 +246,7 @@ def main():
     else:
         device = torch.device('cpu')
 
-    with open(args.train_dataset, 'rb') as f:
-        train_dataset = pickle.load(f)
+    train_dataset = torch.load(args.train_dataset)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, args.batch_size, shuffle=True)
     val_dataset = make_eval_set(args.val_dataset)
